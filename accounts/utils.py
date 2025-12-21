@@ -1,6 +1,8 @@
 import random
 import hmac
 import hashlib
+import threading
+
 import jwt
 import secrets
 from datetime import datetime
@@ -23,11 +25,29 @@ def hmac_hash_otp(otp: str):
     return hmac.new(key, otp.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
+def _send_otp_email(email: str, otp: str):
+    try:
+        subject = "Your login OTP"
+        expires_min = int(getattr(settings, "OTP_EXPIRY_SECONDS", 300) / 60)
+        message = f"Your OTP: {otp}. Expires in {expires_min} minute(s)."
+
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+    except Exception:
+        print("OTP email failed")
+
+
 def send_otp_email(email: str, otp: str):
-    subject = "Your login OTP"
-    expires_min = int(getattr(settings, "OTP_EXPIRY_SECONDS", 300) / 60)
-    message = f"Your OTP: {otp}. Expires in {expires_min} minute(s)."
-    send_mail(subject, message, getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"), [email])
+    threading.Thread(
+        target=_send_otp_email,
+        args=(email, otp),
+        daemon=True
+    ).start()
 
 
 def make_jwt_tokens_for_allowed_email(allowed_email):

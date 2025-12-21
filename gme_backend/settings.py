@@ -197,11 +197,17 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = os.environ.get("GOOGLE_EMAIL_HOST", "smtp.gmail.com")
-EMAIL_PORT = int(os.environ.get("GOOGLE_EMAIL_PORT", 587))
-EMAIL_USE_TLS = os.environ.get("GOOGLE_EMAIL_USE_TLS", "True") == "True"
-EMAIL_USE_SSL = os.environ.get("GOOGLE_EMAIL_USE_SSL", "False") == "True"
-EMAIL_HOST_USER = os.environ.get("GOOGLE_EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.environ.get("GOOGLE_EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+# Email Setup
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend"
+)
+EMAIL_HOST = os.environ.get("BREVO_EMAIL_HOST", "smtp-relay.brevo.com")
+EMAIL_PORT = int(os.environ.get("BREVO_EMAIL_PORT", 587))
+EMAIL_USE_TLS = os.environ.get("BREVO_EMAIL_USE_TLS", "True") == "True"
+EMAIL_HOST_USER = os.environ.get("BREVO_EMAIL_USER", "apikey")
+EMAIL_HOST_PASSWORD = os.environ.get("BREVO_EMAIL_PASSWORD")
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL",
+    "notification.gme@gmail.com"
+)
