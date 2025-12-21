@@ -198,16 +198,20 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email Setup
-EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.smtp.EmailBackend"
-)
-EMAIL_HOST = os.environ.get("BREVO_EMAIL_HOST", "smtp-relay.brevo.com")
-EMAIL_PORT = int(os.environ.get("BREVO_EMAIL_PORT", 587))
-EMAIL_USE_TLS = os.environ.get("BREVO_EMAIL_USE_TLS", "True") == "True"
-EMAIL_HOST_USER = os.environ.get("BREVO_EMAIL_USER", "apikey")
-EMAIL_HOST_PASSWORD = os.environ.get("BREVO_EMAIL_PASSWORD")
-DEFAULT_FROM_EMAIL = os.environ.get(
-    "DEFAULT_FROM_EMAIL",
-    "notification.gme@gmail.com"
-)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@yourdomain.com")
+# Optional: Define a sender name
+DEFAULT_FROM_NAME = os.environ.get("DEFAULT_FROM_NAME", "Global Marine Exports")
+
+# EMAIL_BACKEND = os.environ.get(
+#     "EMAIL_BACKEND",
+#     "django.core.mail.backends.smtp.EmailBackend"
+# )
+# EMAIL_HOST = os.environ.get("BREVO_EMAIL_HOST", "smtp-relay.brevo.com")
+# EMAIL_PORT = int(os.environ.get("BREVO_EMAIL_PORT", 587))
+# EMAIL_USE_TLS = os.environ.get("BREVO_EMAIL_USE_TLS", "True") == "True"
+# EMAIL_HOST_USER = os.environ.get("BREVO_EMAIL_USER", "apikey")
+# EMAIL_HOST_PASSWORD = os.environ.get("BREVO_EMAIL_PASSWORD")
+# DEFAULT_FROM_EMAIL = os.environ.get(
+#     "DEFAULT_FROM_EMAIL",
+#     "notification.gme@gmail.com"
+# )

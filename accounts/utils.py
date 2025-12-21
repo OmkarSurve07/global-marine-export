@@ -1,3 +1,4 @@
+import os
 import random
 import hmac
 import hashlib
@@ -10,6 +11,8 @@ from datetime import datetime
 from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from sib_api_v3_sdk import Configuration, ApiClient, TransactionalEmailsApi, SendSmtpEmail
+from sib_api_v3_sdk.rest import ApiException
 
 from gme_backend import settings
 
@@ -28,23 +31,43 @@ def hmac_hash_otp(otp: str):
 
 def _send_otp_email(email: str, otp: str):
     try:
+        # Configure API client with your Brevo API key
+        configuration = Configuration()
+        configuration.api_key['api-key'] = os.environ.get('BREVO_API_KEY')
+
+        # Create API client instance
+        api_client = ApiClient(configuration)
+        api_instance = TransactionalEmailsApi(api_client)
+
+        # Prepare email data
         subject = "Your login OTP"
         expires_min = int(getattr(settings, "OTP_EXPIRY_SECONDS", 300) / 60)
         message = f"Your OTP: {otp}. Expires in {expires_min} minute(s)."
 
-        send_mail(
+        # Define the email payload
+        send_smtp_email = SendSmtpEmail(
+            to=[{"email": email}],
+            sender={
+                "name": os.environ.get("DEFAULT_FROM_NAME", "YourAppName"),
+                "email": os.environ.get("DEFAULT_FROM_EMAIL")
+            },
             subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
+            text_content=message,
+            # Optionally, use html_content for HTML emails
+            # html_content=f"<p>Your OTP: <strong>{otp}</strong>. Expires in {expires_min} minute(s).</p>"
         )
+
+        # Send the email
+        response = api_instance.send_transac_email(send_smtp_email)
+
+    except ApiException as e:
+        raise Exception(f"Failed to send OTP email: {e}")
     except Exception as e:
-        print("OTP email failed:", str(e))
-        traceback.print_exc()
+        raise Exception(f"Failed to send OTP email: {e}")
 
 
 def send_otp_email(email: str, otp: str):
+    # Keep the background thread for async sending
     threading.Thread(
         target=_send_otp_email,
         args=(email, otp),
