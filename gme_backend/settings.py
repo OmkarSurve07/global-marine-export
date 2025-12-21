@@ -29,8 +29,25 @@ SECRET_KEY = "django-insecure-51pzwk#-yl&$ezz$u+9jln_*g6imf_+f3x4^*&adacnxna0arq
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "https://fantastic-recreation-production-f22f.up.railway.app"]
-CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "https://fantastic-recreation-production-f22f.up.railway.app"]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "https://globalmarineexportsfrontend-production.up.railway.app",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "https://fantastic-recreation-production-f22f.up.railway.app",
+    "https://globalmarineexportsfrontend-production.up.railway.app",
+]
 
 # Application definition
 
@@ -44,11 +61,13 @@ INSTALLED_APPS = [
     "django_filters",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
     "mixengine",
     "accounts",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
