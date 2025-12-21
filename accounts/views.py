@@ -42,6 +42,11 @@ class AccountViewSet(viewsets.ViewSet):
         EmailOTP.objects.filter(email__iexact=email, used=False).delete()
 
         EmailOTP.objects.create(email=email, otp_hash=otp_hash_val, expires_at=expiry)
+        
+        print("EMAIL_HOST:", settings.EMAIL_HOST)
+        print("EMAIL_HOST_USER:", settings.EMAIL_HOST_USER)
+        print("EMAIL_HOST_PASSWORD present:", bool(settings.EMAIL_HOST_PASSWORD))
+        print("DEFAULT_FROM_EMAIL:", settings.DEFAULT_FROM_EMAIL)
 
         # send OTP (sync; queue in prod)
         send_otp_email(email, otp_plain)

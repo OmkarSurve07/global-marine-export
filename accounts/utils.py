@@ -2,6 +2,7 @@ import random
 import hmac
 import hashlib
 import threading
+import traceback
 
 import jwt
 import secrets
@@ -38,8 +39,9 @@ def _send_otp_email(email: str, otp: str):
             recipient_list=[email],
             fail_silently=False,
         )
-    except Exception:
-        print("OTP email failed")
+    except Exception as e:
+        print("OTP email failed:", str(e))
+        traceback.print_exc()
 
 
 def send_otp_email(email: str, otp: str):
