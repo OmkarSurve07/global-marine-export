@@ -29,8 +29,8 @@ SECRET_KEY = "django-insecure-51pzwk#-yl&$ezz$u+9jln_*g6imf_+f3x4^*&adacnxna0arq
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "fantastic-recreation-production-f22f.up.railway.app"]
-CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "fantastic-recreation-production-f22f.up.railway.app"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "https://fantastic-recreation-production-f22f.up.railway.app"]
+CORS_ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "https://fantastic-recreation-production-f22f.up.railway.app"]
 
 # Application definition
 
