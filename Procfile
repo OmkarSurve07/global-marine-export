@@ -1,0 +1,1 @@
+web: gunicorn gme_backend.wsgi --log-file -
