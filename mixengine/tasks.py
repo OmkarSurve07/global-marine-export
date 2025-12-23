@@ -7,6 +7,8 @@ from .models import Sample  # Import your Sample model
 
 @shared_task(bind=True)
 def process_sample_upload(self, file_path):
+    print("DEBUG task.py: CELERY_BROKER_URL =", os.environ.get('CELERY_BROKER_URL'))
+    print("DEBUG task.py: CELERY_RESULT_BACKEND =", os.environ.get('CELERY_RESULT_BACKEND'))
     """
     Background task to process the uploaded CSV/Excel file.
     """

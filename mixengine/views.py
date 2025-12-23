@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -159,6 +161,9 @@ class SampleUploadView(APIView):
         return response
 
     def post(self, request):
+        print("DEBUG view.py: CELERY_BROKER_URL =", os.environ.get('CELERY_BROKER_URL'))
+        print("DEBUG view.py: CELERY_RESULT_BACKEND =", os.environ.get('CELERY_RESULT_BACKEND'))
+
         file = request.FILES.get('file')
         if not file:
             return Response({"error": "No file uploaded."}, status=400)

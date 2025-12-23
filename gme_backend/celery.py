@@ -7,6 +7,9 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gme_backend.settings')
 
 app = Celery('gme_backend')
 
+# Load settings first
+app.config_from_object('django.conf:settings', namespace='CELERY')
+
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
 
