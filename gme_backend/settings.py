@@ -120,6 +120,9 @@ REST_FRAMEWORK = {
 }
 
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
@@ -204,6 +207,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
+MEDIA_ROOT = '/app/media'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_URL = "static/"
 
@@ -230,3 +234,17 @@ DEFAULT_FROM_NAME = os.environ.get("DEFAULT_FROM_NAME", "Global Marine Exports")
 #     "DEFAULT_FROM_EMAIL",
 #     "notification.gme@gmail.com"
 # )
+
+# CELERY SETUP
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = (
+    os.environ.get("USE_INDIAN_TIMEZONE") if os.environ.get("USE_INDIAN_TIMEZONE") else "UTC"
+)
+
+# CELERY SETUP
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND')

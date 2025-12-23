@@ -1,4 +1,5 @@
 import pandas as pd
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.http import HttpResponse
 from rest_framework import viewsets
@@ -9,6 +10,7 @@ from rest_framework.views import APIView
 
 from mixengine.models import ProductOrder, Sample, ProductMixResult
 from mixengine.serializers import ProductOrderSerializer, ProductOrderCreateSerializer, ProductMixResultSerializer
+from mixengine.tasks import process_sample_upload
 
 
 class ProductOrderViewSet(viewsets.ViewSet):
@@ -20,7 +22,7 @@ class ProductOrderViewSet(viewsets.ViewSet):
     - PATCH /api/orders/{id}/  -> Update an order (target_cp or total_bags)
     - DELETE /api/orders/{id}/ -> Delete an order
     """
-    permission_classes = [IsAuthenticated,]
+    permission_classes = [IsAuthenticated, ]
 
     def list(self, request):
         orders = ProductOrder.objects.all().order_by('-created_at')
@@ -161,58 +163,18 @@ class SampleUploadView(APIView):
         if not file:
             return Response({"error": "No file uploaded."}, status=400)
 
-        try:
-            # Read file
-            if file.name.endswith('.csv'):
-                df = pd.read_csv(file)
-            elif file.name.endswith('.xlsx'):
-                df = pd.read_excel(file)
-            else:
-                return Response({"error": "Unsupported file format. Use CSV or Excel."}, status=400)
+        # Optional: Add file size limit
+        MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+        if file.size > MAX_UPLOAD_SIZE:
+            return Response({"error": "File too large."}, status=400)
 
-            required_columns = [
-                'Sample', "Date", "Lot.No", "M", 'CP', 'FAT',
-                'TVBN', 'Ash', 'FFA', 'Bags', 'Fiber'
-            ]
-            for col in required_columns:
-                if col not in df.columns:
-                    return Response({"error": f"Missing required column: {col}"}, status=400)
+        # Save file temporarily (uses MEDIA_ROOT or default storage)
+        file_path = default_storage.save(f'temp_uploads/{file.name}', file)
 
-            created = 0
-            updated = 0
+        # Trigger Celery task
+        task = process_sample_upload.delay(default_storage.path(file_path))
 
-            with transaction.atomic():
-                for _, row in df.iterrows():
-                    # Convert date to datetime, handling NaT
-                    date_value = pd.to_datetime(row['Date'], format='%d.%m.%Y', errors='coerce')
-                    production_date = None if pd.isna(date_value) else date_value
-
-                    obj, is_created = Sample.objects.update_or_create(
-                        name=row['Sample'],
-                        lot_number=row['Lot.No'],   # ✅ match both name & lot
-                        defaults={
-                            'production_date': production_date,
-                            'moisture': row['M'],
-                            'cp': row['CP'],
-                            'fat': row['FAT'],
-                            'tvbn': row['TVBN'],
-                            'ash': row['Ash'],
-                            'ffa': row['FFA'],
-                            'bags_available': row['Bags'],
-                            'fiber': row['Fiber']      # ✅ new column added
-                        }
-                    )
-                    if is_created:
-                        created += 1
-                    else:
-                        updated += 1
-
-            return Response({
-                "message": "Upload successful.",
-                "created": created,
-                "updated": updated
-            }, status=201)
-
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
-
+        return Response({
+            "message": "Upload received. Processing in background.",
+            "task_id": task.id  # User can use this to check status later
+        }, status=202)  # 202 Accepted
