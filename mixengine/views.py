@@ -1,5 +1,6 @@
 import pandas as pd
 from django.db import transaction
+from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -99,6 +100,61 @@ class SampleUploadView(APIView):
     - Creates new samples otherwise
     - Uses transaction to ensure atomicity
     """
+
+    def get(self, request):
+        """
+        Download a template CSV file with required columns and example rows
+        """
+        # Define the required columns in exact order
+        columns = [
+            'Sample', 'Date', 'Lot.No', 'M', 'CP', 'FAT',
+            'TVBN', 'Ash', 'FFA', 'Bags', 'Fiber'
+        ]
+
+        # Optional: Add a few example rows to help users
+        example_data = [
+            {
+                'Sample': 'Fish Meal Local',
+                'Date': '23.12.2025',  # format: DD.MM.YYYY
+                'Lot.No': 'FM-2025-001',
+                'M': 10.2,  # Moisture
+                'CP': 64.5,  # Crude Protein
+                'FAT': 11.8,
+                'TVBN': 135.0,
+                'Ash': 19.5,
+                'FFA': 9.2,
+                'Bags': 80,
+                'Fiber': 1.8
+            },
+            {
+                'Sample': 'Hypro Fish',
+                'Date': '20.12.2025',
+                'Lot.No': 'HYPRO-DEC01',
+                'M': 9.8,
+                'CP': 70.0,
+                'FAT': 15.0,
+                'TVBN': 100.0,
+                'Ash': 16.0,
+                'FFA': 5.0,
+                'Bags': 50,
+                'Fiber': 1.0
+            },
+            # Add more examples if you want, or leave empty
+        ]
+
+        # Create DataFrame
+        df = pd.DataFrame(example_data, columns=columns)
+
+        # If you want completely empty (just headers), use:
+        # df = pd.DataFrame(columns=columns)
+
+        # Create HTTP response with CSV
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="sample_upload_template.csv"'
+
+        df.to_csv(path_or_buf=response, index=False, encoding='utf-8')
+
+        return response
 
     def post(self, request):
         file = request.FILES.get('file')
