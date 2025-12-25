@@ -1,14 +1,11 @@
-import os
-
 import pandas as pd
-from django.core.files.storage import default_storage
-from django.db import transaction
 from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+import cloudinary.uploader
 
 from mixengine.models import ProductOrder, Sample, ProductMixResult
 from mixengine.serializers import ProductOrderSerializer, ProductOrderCreateSerializer, ProductMixResultSerializer
@@ -161,25 +158,27 @@ class SampleUploadView(APIView):
         return response
 
     def post(self, request):
-        print("DEBUG view.py: CELERY_BROKER_URL =", os.environ.get('CELERY_BROKER_URL'))
-        print("DEBUG view.py: CELERY_RESULT_BACKEND =", os.environ.get('CELERY_RESULT_BACKEND'))
-
-        file = request.FILES.get('file')
+        file = request.FILES.get("file")
         if not file:
-            return Response({"error": "No file uploaded."}, status=400)
+            return Response({"error": "No file uploaded"}, status=400)
 
-        # Optional: Add file size limit
-        MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+        MAX_UPLOAD_SIZE = 50 * 1024 * 1024
         if file.size > MAX_UPLOAD_SIZE:
-            return Response({"error": "File too large."}, status=400)
+            return Response({"error": "File too large"}, status=400)
 
-        # Save file temporarily (uses MEDIA_ROOT or default storage)
-        file_path = default_storage.save(f'temp_uploads/{file.name}', file)
+        # Upload to Cloudinary as RAW file
+        upload_result = cloudinary.uploader.upload(
+            file,
+            resource_type="raw",
+            folder="mixengine_uploads"
+        )
 
-        # Trigger Celery task
-        task = process_sample_upload.delay(default_storage.path(file_path))
+        file_url = upload_result["secure_url"]
+
+        # Send URL to Celery (NOT local path)
+        task = process_sample_upload.delay(file_url)
 
         return Response({
             "message": "Upload received. Processing in background.",
-            "task_id": task.id  # User can use this to check status later
-        }, status=202)  # 202 Accepted
+            "task_id": task.id
+        }, status=202)

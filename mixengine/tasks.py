@@ -6,24 +6,23 @@ from .models import Sample  # Import your Sample model
 
 
 @shared_task(bind=True)
-def process_sample_upload(self, file_path):
+def process_sample_upload(self, file_url):
     print("DEBUG task.py: CELERY_BROKER_URL =", os.environ.get('CELERY_BROKER_URL'))
     print("DEBUG task.py: CELERY_RESULT_BACKEND =", os.environ.get('CELERY_RESULT_BACKEND'))
     """
     Background task to process the uploaded CSV/Excel file.
     """
-    created = 0
-    updated = 0
-    chunksize = 1000  # Process in chunks to handle large files
+    chunksize = 1000
+    created = updated = 0
 
     try:
-        if file_path.endswith('.csv'):
-            reader = pd.read_csv(file_path, chunksize=chunksize)
-        elif file_path.endswith('.xlsx'):
-            df = pd.read_excel(file_path)
-            reader = [df]  # Single chunk for Excel (or implement chunking if needed)
+        if file_url.endswith(".csv"):
+            reader = pd.read_csv(file_url, chunksize=chunksize)
+        elif file_url.endswith(".xlsx"):
+            df = pd.read_excel(file_url)
+            reader = [df]
         else:
-            raise ValueError("Unsupported file format.")
+            raise ValueError("Unsupported file format")
 
         required_columns = ['Sample', 'Date', 'Lot.No', 'M', 'CP', 'FAT',
                             'TVBN', 'Ash', 'FFA', 'Bags', 'Fiber']
@@ -58,8 +57,8 @@ def process_sample_upload(self, file_path):
                         updated += 1
 
         # Clean up the temporary file
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if os.path.exists(file_url):
+            os.remove(file_url)
 
         return {
             "status": "success",
