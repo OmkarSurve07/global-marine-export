@@ -85,19 +85,51 @@ class ProductOrderCreateSerializer(serializers.Serializer):
                             f"Available range: {min_val} – {max_val}"
                         )
 
+        data = super().validate(data)
+
+        # New: Check fixed_samples against remaining_quantity
+        samples = list(Sample.objects.all())
+        fixed_samples = data.get('fixed_samples', {}) or {}
+        for key, val in fixed_samples.items():
+            if key.upper() == "F/M":
+                matching_indices = [i for i, s in enumerate(samples) if "FISH MEAL" in s.name.upper()]
+            elif key.upper() == "HYPRO":
+                matching_indices = [i for i, s in enumerate(samples) if "HYPRO" in s.name.upper()]
+            else:
+                matching_indices = [i for i, s in enumerate(samples) if key.upper() in s.name.upper()]
+            if matching_indices:
+                sum_remaining = sum(max(0, samples[i].remaining_quantity) for i in matching_indices)
+                if sum_remaining < val:
+                    # Don't raise error; we'll handle in save with a message
+                    data['insufficient_stock'] = {key: {'required': val, 'available': sum_remaining}}
+
         return data
 
     def save(self, **kwargs):
         data = self.validated_data
         total_bags = data.pop('total_bags')
         fixed_samples = data.pop('fixed_samples', {}) or {}
-        samples = list(Sample.objects.all())
+        insufficient_stock = data.pop('insufficient_stock', None)  # From validate
 
+        if insufficient_stock:
+            messages = []
+            for key, info in insufficient_stock.items():
+                messages.append(f"Not enough {key}: required {info['required']}, available {info['available']}")
+            return {
+                "success": False,
+                "message": "Request can't be completed because " + "; ".join(messages)
+            }
+
+        samples = list(Sample.objects.all())
         # Run optimization
         result = optimize_mix(samples, total_bags, fixed_samples=fixed_samples, **data)
 
         if not result['success']:
             raise serializers.ValidationError("Optimization failed. Please adjust your input.")
+
+        # Map targets for response (strip 'target_', uppercase keys)
+        targets = {k.replace("target_", "").upper(): v for k, v in self.validated_data.items() if
+                   k.startswith('target_') and v is not None}
 
         # Create order
         order = ProductOrder.objects.create(
@@ -120,10 +152,16 @@ class ProductOrderCreateSerializer(serializers.Serializer):
                 sample.remaining_quantity = sample.bags_available - sample.used_quantity
                 sample.save(update_fields=["used_quantity", "remaining_quantity"])
 
+        # Calculate variances
+        final_values = result['final_values']  # Assuming lower keys like 'cp'
+        variances = {k: round(final_values.get(k.lower(), 0) - v, 2) for k, v in targets.items()}
+
         return {
             "order_id": order.id,
             "total_bags": total_bags,
+            "targets": targets,
             "final_values": result['final_values'],
+            "variances": variances,
             "mix": ProductMixResultSerializer(
                 ProductMixResult.objects.filter(order=order), many=True
             ).data
