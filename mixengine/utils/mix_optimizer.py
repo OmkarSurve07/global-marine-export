@@ -39,7 +39,8 @@ def optimize_mix(samples, total_bags, fixed_samples=None, **targets):
         "fiber": [s.fiber for s in samples],
     }
     values_dict = {k: v for k, v in values_dict.items() if k in nutrient_list}
-    bag_limits = [s.bags_available for s in samples]
+    # bag_limits = [s.bags_available for s in samples]
+    bag_limits = [max(0, s.remaining_quantity) for s in samples]
 
     # Objective: minimize sum of all violations (upper + lower for each nutrient)
     c = np.zeros(n)  # No cost for x
@@ -54,15 +55,22 @@ def optimize_mix(samples, total_bags, fixed_samples=None, **targets):
     b_eq = [total_bags]
 
     for key, val in fixed_samples.items():
-        # Custom matching for common groups
+        # Determine matching samples based on key
         if key.upper() == "F/M":
             matching_indices = [i for i, s in enumerate(samples) if "FISH MEAL" in s.name.upper()]
         elif key.upper() == "HYPRO":
             matching_indices = [i for i, s in enumerate(samples) if "HYPRO" in s.name.upper()]
         else:
             matching_indices = [i for i, s in enumerate(samples) if key.upper() in s.name.upper()]
+
         if matching_indices:
-            fixed_bags = min(val, sum(bag_limits[i] for i in matching_indices))
+            # Use current remaining quantity (clamped to >=0) instead of original bags_available
+            sum_remaining = sum(bag_limits[i] for i in matching_indices)  # bag_limits already uses remaining_quantity
+
+            # Cap the fixed requirement at what's actually available now
+            fixed_bags = min(val, sum_remaining)
+
+            # Create equality constraint row: sum of x_i for matching samples == fixed_bags
             fixed_row = np.zeros(n + 2 * m)
             for i in matching_indices:
                 fixed_row[i] = 1
@@ -133,7 +141,9 @@ def basic_mix(samples, total_bags, fixed_samples):
     c = np.zeros(n)
     A_eq = np.ones((1, n))
     b_eq = [total_bags]
-    bounds = [(0, s.bags_available) for s in samples]
+
+    bag_limits = [max(0, s.remaining_quantity) for s in samples]
+    bounds = [(0, bl) for bl in bag_limits]
     for key, val in fixed_samples.items():
         if key.upper() == "F/M":
             matching = [i for i, s in enumerate(samples) if "FISH MEAL" in s.name.upper()]
@@ -141,12 +151,16 @@ def basic_mix(samples, total_bags, fixed_samples):
             matching = [i for i, s in enumerate(samples) if "HYPRO" in s.name.upper()]
         else:
             matching = [i for i, s in enumerate(samples) if key.upper() in s.name.upper()]
+
         if matching:
+            sum_remaining = sum(bag_limits[i] for i in matching)
+            fixed_bags = min(val, sum_remaining)
+
             fixed_row = np.zeros(n)
             for i in matching:
                 fixed_row[i] = 1
             A_eq = np.vstack((A_eq, fixed_row))
-            b_eq.append(min(val, sum(bounds[i][1] for i in matching)))
+            b_eq.append(fixed_bags)
 
     result = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
     if result.success:
