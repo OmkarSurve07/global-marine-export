@@ -2,14 +2,30 @@ import pandas as pd
 from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 import cloudinary.uploader
+from rest_framework.viewsets import ModelViewSet
 
 from mixengine.models import ProductOrder, Sample, ProductMixResult
-from mixengine.serializers import ProductOrderSerializer, ProductOrderCreateSerializer, ProductMixResultSerializer
+from mixengine.serializers import ProductOrderSerializer, ProductOrderCreateSerializer, ProductMixResultSerializer, \
+    SampleSerializer
 from mixengine.tasks import process_sample_upload
+from utility.pagination import SamplePagination
+
+
+class SampleViewSet(ModelViewSet):
+    queryset = Sample.objects.all().order_by('-last_updated')
+    serializer_class = SampleSerializer
+    pagination_class = SamplePagination
+
+    permission_classes = [IsAuthenticated]
+
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['name', 'lot_number']
+    ordering_fields = ['name', 'cp', 'last_updated']
 
 
 class ProductOrderViewSet(viewsets.ViewSet):
