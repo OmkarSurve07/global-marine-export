@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from mixengine.models import Sample, ProductOrder, ProductMixResult
@@ -14,6 +15,25 @@ class ProductOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductOrder
         fields = ['id', 'target_cp', 'total_bags']
+
+
+class ProductOrderDetailSerializer(serializers.ModelSerializer):
+    mix = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductOrder
+        fields = [
+            'id',
+            'total_bags',
+            'targets',
+            'final_values',
+            'variances',
+            'mix',
+        ]
+
+    def get_mix(self, obj):
+        qs = ProductMixResult.objects.filter(order=obj)
+        return ProductMixResultSerializer(qs, many=True).data
 
 
 class ProductMixResultSerializer(serializers.ModelSerializer):
@@ -109,60 +129,68 @@ class ProductOrderCreateSerializer(serializers.Serializer):
         data = self.validated_data
         total_bags = data.pop('total_bags')
         fixed_samples = data.pop('fixed_samples', {}) or {}
-        insufficient_stock = data.pop('insufficient_stock', None)  # From validate
+        insufficient_stock = data.pop('insufficient_stock', None)
 
         if insufficient_stock:
-            messages = []
-            for key, info in insufficient_stock.items():
-                messages.append(f"Not enough {key}: required {info['required']}, available {info['available']}")
+            messages = [
+                f"Not enough {k}: required {v['required']}, available {v['available']}"
+                for k, v in insufficient_stock.items()
+            ]
             return {
                 "success": False,
                 "message": "Request can't be completed because " + "; ".join(messages)
             }
 
         samples = list(Sample.objects.all())
+
         # Run optimization
         result = optimize_mix(samples, total_bags, fixed_samples=fixed_samples, **data)
-
         if not result['success']:
             raise serializers.ValidationError("Optimization failed. Please adjust your input.")
 
-        # Map targets for response (strip 'target_', uppercase keys)
-        targets = {k.replace("target_", "").upper(): v for k, v in self.validated_data.items() if
-                   k.startswith('target_') and v is not None}
+        # Prepare targets
+        targets = {
+            k.replace("target_", "").upper(): v
+            for k, v in self.validated_data.items()
+            if k.startswith('target_') and v is not None
+        }
 
-        # Create order
-        order = ProductOrder.objects.create(
-            target_cp=data.get("target_cp"),
-            total_bags=total_bags
-        )
+        final_values = result['final_values']
+        variances = {
+            k: round(final_values.get(k.lower(), 0) - v, 2)
+            for k, v in targets.items()
+        }
 
-        # Loop over samples and update stock
-        for i, sample in enumerate(samples):
-            bags_used = result['bags_used'][i]
-            if bags_used > 0:
-                ProductMixResult.objects.create(
-                    order=order,
-                    sample=sample,
-                    bags_used=bags_used,
-                    # is_fixed=sample.name in fixed_samples
-                )
+        with transaction.atomic():
+            order = ProductOrder.objects.create(
+                total_bags=total_bags,
+                target_cp=data.get("target_cp"),
+                targets=targets,
+                final_values=final_values,
+                variances=variances
+            )
+            # Create mix rows + update stock
+            for i, sample in enumerate(samples):
+                bags_used = result['bags_used'][i]
+                if bags_used > 0:
+                    ProductMixResult.objects.create(
+                        order=order,
+                        sample=sample,
+                        bags_used=bags_used
+                    )
 
-                sample.used_quantity += bags_used
-                sample.remaining_quantity = sample.bags_available - sample.used_quantity
-                sample.save(update_fields=["used_quantity", "remaining_quantity"])
-
-        # Calculate variances
-        final_values = result['final_values']  # Assuming lower keys like 'cp'
-        variances = {k: round(final_values.get(k.lower(), 0) - v, 2) for k, v in targets.items()}
+                    sample.used_quantity += bags_used
+                    sample.remaining_quantity = sample.bags_available - sample.used_quantity
+                    sample.save(update_fields=["used_quantity", "remaining_quantity"])
 
         return {
             "order_id": order.id,
             "total_bags": total_bags,
             "targets": targets,
-            "final_values": result['final_values'],
+            "final_values": final_values,
             "variances": variances,
             "mix": ProductMixResultSerializer(
-                ProductMixResult.objects.filter(order=order), many=True
+                ProductMixResult.objects.filter(order=order),
+                many=True
             ).data
         }

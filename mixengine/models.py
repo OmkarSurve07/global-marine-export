@@ -33,6 +33,9 @@ class Sample(models.Model):
 class ProductOrder(models.Model):
     target_cp = models.FloatField(null=True, blank=True)
     total_bags = models.IntegerField(null=True, blank=True)
+    targets = models.JSONField(null=True, blank=True)
+    final_values = models.JSONField(null=True, blank=True)
+    variances = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     def __str__(self):

@@ -11,7 +11,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from mixengine.models import ProductOrder, Sample, ProductMixResult
 from mixengine.serializers import ProductOrderSerializer, ProductOrderCreateSerializer, ProductMixResultSerializer, \
-    SampleSerializer
+    SampleSerializer, ProductOrderDetailSerializer
 from mixengine.tasks import process_sample_upload
 from utility.pagination import SamplePagination
 
@@ -50,8 +50,16 @@ class ProductOrderViewSet(viewsets.ViewSet):
         except ProductOrder.DoesNotExist:
             return Response({"error": "Order not found"}, status=404)
 
-        serializer = ProductOrderSerializer(order)
-        return Response(serializer.data)
+        serializer = ProductOrderDetailSerializer(order)
+
+        return Response({
+            "order_id": order.id,
+            "total_bags": order.total_bags,
+            "targets": order.targets,
+            "final_values": order.final_values,
+            "variances": order.variances,
+            "mix": serializer.data["mix"],
+        })
 
     def partial_update(self, request, pk=None):
         try:
@@ -96,7 +104,7 @@ class ProductMixResultViewSet(viewsets.ModelViewSet):
     queryset = ProductMixResult.objects.all()
     serializer_class = ProductMixResultSerializer
 
-    # permission_classes = [IsAuthenticated]  # Restrict access to authenticated users
+    permission_classes = [IsAuthenticated]  # Restrict access to authenticated users
 
     def get_queryset(self):
         """
