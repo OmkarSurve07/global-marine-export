@@ -37,6 +37,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "https://*.ngrok-free.app",
+    "https://488dcdd4e90f.ngrok-free.app",
     "http://localhost:3000",
     "http://localhost:3001",
     "https://globalmarineexportsfrontend-production.up.railway.app",
@@ -44,6 +45,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.app",
+    "https://488dcdd4e90f.ngrok-free.app",
     "http://localhost:3000",
     "http://localhost:3001",
     "https://globalmarineexportsfrontend-production.up.railway.app",
