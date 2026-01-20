@@ -42,9 +42,9 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://fantastic-recreation-production-f22f.up.railway.app",
     "https://globalmarineexportsfrontend-production.up.railway.app",
 ]
-
 
 # Application definition
 INSTALLED_APPS = [
