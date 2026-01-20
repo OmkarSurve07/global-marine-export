@@ -25,30 +25,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-51pzwk#-yl&$ezz$u+9jln_*g6imf_+f3x4^*&adacnxna0arq"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    "fantastic-recreation-production-f22f.up.railway.app",
+]
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:3001",
     "https://globalmarineexportsfrontend-production.up.railway.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.ngrok-free.app",
-    "https://488dcdd4e90f.ngrok-free.app",
-    "http://localhost:3000",
-    "http://localhost:3001",
     "https://globalmarineexportsfrontend-production.up.railway.app",
-    "https://fantastic-recreation-production-f22f.up.railway.app",
 ]
+
 
 # Application definition
 INSTALLED_APPS = [
