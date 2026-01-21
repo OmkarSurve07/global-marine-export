@@ -38,12 +38,12 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "https://globalmarineexportsfrontend-production.up.railway.app",
+    "https://main.d2q9hkfdujp75c.amplifyapp.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://fantastic-recreation-production-f22f.up.railway.app",
-    "https://globalmarineexportsfrontend-production.up.railway.app",
+    "https://main.d2q9hkfdujp75c.amplifyapp.com",
 ]
 
 # Application definition
