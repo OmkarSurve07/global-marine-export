@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from mixengine.models import Sample, ProductOrder, ProductMixResult
-from mixengine.utils.mix_optimizer import optimize_mix
+from mixengine.utils.mix_optimizer import optimize_mix, get_closest_feasible_targets
 
 
 class SampleSerializer(serializers.ModelSerializer):
@@ -146,7 +146,37 @@ class ProductOrderCreateSerializer(serializers.Serializer):
         # Run optimization
         result = optimize_mix(samples, total_bags, fixed_samples=fixed_samples, **data)
         if not result['success']:
-            raise serializers.ValidationError("Optimization failed. Please adjust your input.")
+            targets_dict = {
+                k.replace("target_", "").upper(): v
+                for k, v in data.items()
+                if k.startswith("target_") and v is not None
+            }
+
+            recommended = get_closest_feasible_targets(
+                samples,
+                total_bags,
+                targets_dict,
+                fixed_samples=fixed_samples
+            )
+
+            recommended_payload = {
+                "total_bags": total_bags,
+                "fixed_samples": fixed_samples or {}
+            }
+
+            if not recommended:
+                raise serializers.ValidationError({
+                    "message": "Optimization failed due to stock constraints. Please review available quantities."
+                })
+
+            # Map recommended values back to target_ format
+            for nutrient, value in recommended.items():
+                recommended_payload[f"target_{nutrient.lower()}"] = value
+
+            raise serializers.ValidationError({
+                "message": "Exact targets not achievable with current stock.",
+                "recommended_payload": recommended_payload
+            })
 
         # Prepare targets
         targets = {

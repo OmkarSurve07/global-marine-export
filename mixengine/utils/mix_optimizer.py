@@ -167,3 +167,115 @@ def basic_mix(samples, total_bags, fixed_samples):
         return {"success": True, "bags_used": [round(b, 2) for b in result.x], "final_values": {}, "total_violation": 0}
     else:
         return {"success": False, "reason": result.message}
+
+
+def get_achievable_range(samples, nutrient, total_bags):
+    n = len(samples)
+    values = np.array([getattr(s, nutrient) or 0 for s in samples])
+    bag_limits = [max(0, s.remaining_quantity) for s in samples]
+
+    A_eq = np.ones((1, n))
+    b_eq = np.array([total_bags])
+    bounds = [(0, bl) for bl in bag_limits]
+
+    # Maximize nutrient
+    c_max = -values
+    res_max = linprog(c_max, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method="highs")
+
+    # Minimize nutrient
+    c_min = values
+    res_min = linprog(c_min, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method="highs")
+
+    if not res_max.success or not res_min.success:
+        return None
+
+    max_val = -res_max.fun / total_bags
+    min_val = res_min.fun / total_bags
+
+    return round(max(0, min_val), 2), round(max(0, max_val), 2)
+
+
+def get_closest_feasible_targets(samples, total_bags, targets_dict, fixed_samples=None):
+    n = len(samples)
+    nutrients = list(targets_dict.keys())
+    m = len(nutrients)
+
+    bag_limits = [max(0, s.remaining_quantity) for s in samples]
+
+    # Extract nutrient values matrix
+    values_matrix = np.array([
+        [getattr(s, nut.lower()) or 0 for s in samples]
+        for nut in nutrients
+    ])
+
+    # Variables:
+    # x_i (n samples)
+    # deviation_j_pos
+    # deviation_j_neg
+    total_vars = n + 2 * m
+
+    c = np.zeros(total_vars)
+    c[n:] = 1  # minimize total deviation
+
+    bounds = [(0, bl) for bl in bag_limits] + [(0, None)] * (2 * m)
+
+    # Equality: sum(x) = total_bags
+    A_eq = np.zeros((1, total_vars))
+    A_eq[0, :n] = 1
+    b_eq = np.array([total_bags])
+
+    fixed_samples = fixed_samples or {}
+
+    for key, val in fixed_samples.items():
+        if key.upper() == "F/M":
+            matching_indices = [i for i, s in enumerate(samples) if "FISH MEAL" in s.name.upper()]
+        elif key.upper() == "HYPRO":
+            matching_indices = [i for i, s in enumerate(samples) if "HYPRO" in s.name.upper()]
+        else:
+            matching_indices = [i for i, s in enumerate(samples) if key.upper() in s.name.upper()]
+
+        if matching_indices:
+            row = np.zeros(total_vars)
+            for i in matching_indices:
+                row[i] = 1
+            A_eq = np.vstack((A_eq, row))
+            b_eq = np.append(b_eq, val)
+
+    A_ub = []
+    b_ub = []
+
+    for j, nutrient in enumerate(nutrients):
+        target = targets_dict[nutrient]
+
+        row_upper = np.zeros(total_vars)
+        row_upper[:n] = values_matrix[j]
+        row_upper[n + j] = -1
+        A_ub.append(row_upper)
+        b_ub.append(target * total_bags)
+
+        row_lower = np.zeros(total_vars)
+        row_lower[:n] = -values_matrix[j]
+        row_lower[n + m + j] = -1
+        A_ub.append(row_lower)
+        b_ub.append(-target * total_bags)
+
+    res = linprog(c,
+                  A_ub=np.array(A_ub),
+                  b_ub=np.array(b_ub),
+                  A_eq=A_eq,
+                  b_eq=b_eq,
+                  bounds=bounds,
+                  method="highs")
+
+    if not res.success:
+        return None
+
+    x = res.x[:n]
+
+    # Calculate final achievable nutrient values
+    recommended = {}
+    for j, nutrient in enumerate(nutrients):
+        total = sum(values_matrix[j][i] * x[i] for i in range(n))
+        recommended[nutrient] = round(total / total_bags, 2)
+
+    return recommended
